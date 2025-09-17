@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grace's RAG AI clone</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff;
+            color: #000000;
+        }
+        .container {
+            border: 1px solid #e2e8f0;
+            background-color: #f7fafc;
+        }
+        .input-group {
+            position: relative;
+        }
+        .input-group input {
+            padding-right: 3rem;
+        }
+        .input-group button {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+    </style>
+</head>
+<body class="p-8 h-screen flex items-center justify-center">
+    <div class="container rounded-2xl shadow-lg p-8 max-w-2xl w-full">
+        <div class="flex flex-col items-center mb-6">
+            <h1 class="text-3xl font-bold mb-2">Hello, ask about Grace</h1>
+            <p class="text-gray-600 text-center">Ask everything about Grace</p>
+        </div>
+
+        <div class="space-y-4">
+            <!-- Question Input Section -->
+            <div class="input-group">
+                <input type="text" id="questionInput" class="w-full p-4 border border-gray-300 rounded-xl placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Can you give me 2 key technical skills Grace has?" />
+                <button id="askButton" class="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md transition duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Answer Display Section -->
+            <div id="answerDisplay" class="bg-gray-200 p-6 rounded-xl border border-gray-300 min-h-[100px] overflow-auto">
+                <p class="text-gray-500">The answer will appear here...</p>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="hidden flex justify-center items-center p-4">
+                <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                <span class="text-gray-600 ml-3">Processing...</span>
+            </div>
+
+            <!-- Error Message -->
+            <div id="errorMessage" class="hidden p-4 bg-red-200 text-red-700 rounded-lg text-sm text-center">
+                An error occurred. Please try again.
+            </div>
+
+            <!-- Document Info -->
+            <div class="text-center text-gray-500 mt-4">
+                <p>Using document: <span class="font-semibold text-gray-700">resume.pdf</span></p>
+                <p>Model: <span class="font-semibold text-gray-700">FAISS + LangChain</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Updated function to make a real API call to your Flask server
+        async function getAnswerFromDocument(question) {
+            const response = await fetch('/ask', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ question: question })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.answer || 'Failed to fetch answer from server.');
+            }
+
+            const data = await response.json();
+            return data.answer;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const questionInput = document.getElementById('questionInput');
+            const askButton = document.getElementById('askButton');
+            const answerDisplay = document.getElementById('answerDisplay');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Event listener for the button click
+            askButton.addEventListener('click', () => {
+                const question = questionInput.value.trim();
+                if (question) {
+                    processQuestion(question);
+                }
+            });
+
+            // Event listener for the Enter key on the input field
+            questionInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    const question = questionInput.value.trim();
+                    if (question) {
+                        processQuestion(question);
+                    }
+                }
+            });
+
+            async function processQuestion(question) {
+                // Hide previous messages and show loading indicator
+                answerDisplay.innerHTML = '';
+                errorMessage.classList.add('hidden');
+                loadingIndicator.classList.remove('hidden');
+                askButton.disabled = true;
+
+                try {
+                    const answer = await getAnswerFromDocument(question);
+                    answerDisplay.innerHTML = `<p class="text-gray-800 font-semibold">Answer:</p><p class="mt-2 text-gray-600">${answer}</p>`;
+                } catch (error) {
+                    errorMessage.textContent = `Error: ${error.message}`;
+                    errorMessage.classList.remove('hidden');
+                    console.error("Error processing question:", error);
+                    answerDisplay.innerHTML = `<p class="text-gray-500">Failed to get an answer.</p>`;
+                } finally {
+                    // Hide loading indicator and re-enable button
+                    loadingIndicator.classList.add('hidden');
+                    askButton.disabled = false;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+
